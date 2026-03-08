@@ -1,0 +1,9 @@
+{
+  "name": "monitoring-dashboard",
+  "version": "1.0.0",
+  "description": "Monitoring dashboard project",
+  "scripts": {
+    "dev": "cd backend && npm run dev",
+    "start": "cd backend && npm start"
+  }
+}

@@ -11,7 +11,6 @@ export const getAlerts = async (req, res, next) => {
     // Extract filter parameters from query string
     const filters = {
       severity: req.query.severity,
-      status: req.query.status,
       device_id: req.query.device_id
     };
 

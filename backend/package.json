@@ -2,7 +2,7 @@
   "name": "cybersec-platform-dashboard-backend",
   "version": "1.0.0",
   "description": "Backend API for cybersecurity monitoring dashboard",
-  "main": "src/server.js",
+  "main": "backend/src/server.js",
   "type": "module",
   "scripts": {
     "dev": "node --watch src/server.js",
