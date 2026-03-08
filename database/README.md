@@ -15,3 +15,4 @@ Database structure.
 
 seed_data.sql  
 Sample data for testing backend API.
+
