@@ -1,0 +1,34 @@
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    username VARCHAR(50),
+    email VARCHAR(100),
+    role VARCHAR(50),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE audit_logs (
+    id SERIAL PRIMARY KEY,
+    user_id INT,
+    machine_id VARCHAR(50),
+    event_type VARCHAR(100),
+    event_message TEXT,
+    event_time TIMESTAMP,
+    severity VARCHAR(20)
+);
+
+CREATE TABLE alerts (
+    id SERIAL PRIMARY KEY,
+    audit_id INT,
+    anomaly_score FLOAT,
+    alert_type VARCHAR(50),
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE reports (
+    id SERIAL PRIMARY KEY,
+    report_name VARCHAR(100),
+    generated_at TIMESTAMP,
+    status VARCHAR(50),
+    summary TEXT
+);
