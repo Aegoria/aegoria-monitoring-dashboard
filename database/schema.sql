@@ -1,4 +1,4 @@
-CREATE TABLE users (
+CREATE TABLE IF NOT EXISTS users (
     id SERIAL PRIMARY KEY,
     username VARCHAR(50),
     email VARCHAR(100),
@@ -6,7 +6,7 @@ CREATE TABLE users (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE audit_logs (
+CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
     user_id INT,
     machine_id VARCHAR(50),
@@ -16,7 +16,7 @@ CREATE TABLE audit_logs (
     severity VARCHAR(20)
 );
 
-CREATE TABLE alerts (
+CREATE TABLE IF NOT EXISTS alerts (
     id SERIAL PRIMARY KEY,
     audit_id INT,
     anomaly_score FLOAT,
@@ -25,7 +25,7 @@ CREATE TABLE alerts (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
-CREATE TABLE reports (
+CREATE TABLE IF NOT EXISTS reports (
     id SERIAL PRIMARY KEY,
     report_name VARCHAR(100),
     generated_at TIMESTAMP,

@@ -7,10 +7,10 @@ export const fetchLogs = async (filters = {}) => {
   const conditions = [];
   const values = [];
 
-  // Add device_id filter if provided
+  // Add device_id filter if provided (mapped to machine_id)
   if (filters.device_id) {
     values.push(filters.device_id);
-    conditions.push(`device_id = $${values.length}`);
+    conditions.push(`machine_id = $${values.length}`);
   }
 
   // Add event_type filter if provided
@@ -19,22 +19,22 @@ export const fetchLogs = async (filters = {}) => {
     conditions.push(`event_type = $${values.length}`);
   }
 
-  // Add start timestamp filter if provided
+  // Add start timestamp filter if provided (mapped to event_time)
   if (filters.start) {
     values.push(filters.start);
-    conditions.push(`timestamp >= $${values.length}`);
+    conditions.push(`event_time >= $${values.length}`);
   }
 
-  // Add end timestamp filter if provided
+  // Add end timestamp filter if provided (mapped to event_time)
   if (filters.end) {
     values.push(filters.end);
-    conditions.push(`timestamp <= $${values.length}`);
+    conditions.push(`event_time <= $${values.length}`);
   }
 
-  // Base query to select log fields
+  // Base query to select log fields from audit_logs
   let query = `
-    SELECT id, device_id, timestamp, event_type, process_name, user_account, network_ip, raw_data, created_at
-    FROM logs
+    SELECT id, machine_id as device_id, event_time as timestamp, event_type, user_id as user_account, event_message as raw_data, event_time as created_at
+    FROM audit_logs
   `;
 
   // Add WHERE clause if any conditions exist
@@ -42,8 +42,8 @@ export const fetchLogs = async (filters = {}) => {
     query += ` WHERE ${conditions.join(" AND ")}`;
   }
 
-  // Order by timestamp, most recent first
-  query += ` ORDER BY timestamp DESC`;
+  // Order by event_time, most recent first
+  query += ` ORDER BY event_time DESC`;
 
   // Apply limit (default 100 if not specified)
   const limit = Number(filters.limit) || 100;
@@ -57,10 +57,10 @@ export const fetchLogs = async (filters = {}) => {
 
 // Service function to fetch a single log entry by ID
 export const fetchLogById = async (id) => {
-  // Query to select log by ID
+  // Query to select log by ID from audit_logs
   const query = `
-    SELECT id, device_id, timestamp, event_type, process_name, user_account, network_ip, raw_data, created_at
-    FROM logs
+    SELECT id, machine_id as device_id, event_time as timestamp, event_type, user_id as user_account, event_message as raw_data, event_time as created_at
+    FROM audit_logs
     WHERE id = $1
   `;
 

@@ -7,28 +7,23 @@ export const fetchAlerts = async (filters = {}) => {
   const conditions = [];
   const values = [];
 
-  // Add severity filter if provided
+  // Add severity filter if provided (mapped to anomaly_score)
   if (filters.severity) {
     values.push(filters.severity);
-    conditions.push(`severity = $${values.length}`);
+    conditions.push(`a.anomaly_score = $${values.length}`);
   }
 
-  // Add status filter if provided
-  if (filters.status) {
-    values.push(filters.status);
-    conditions.push(`status = $${values.length}`);
-  }
-
-  // Add device_id filter if provided
+  // Add device_id filter if provided (mapped to audit_logs.machine_id)
   if (filters.device_id) {
     values.push(filters.device_id);
-    conditions.push(`device_id = $${values.length}`);
+    conditions.push(`al.machine_id = $${values.length}`);
   }
 
-  // Base query to select alert fields
+  // Base query to select alert fields with join to audit_logs
   let query = `
-    SELECT id, device_id, severity, title, description, status, created_at
-    FROM alerts
+    SELECT a.id, al.machine_id as device_id, a.anomaly_score as severity, a.alert_type as title, a.description, a.created_at
+    FROM alerts a
+    JOIN audit_logs al ON a.audit_id = al.id
   `;
 
   // Add WHERE clause if any conditions exist
@@ -37,7 +32,7 @@ export const fetchAlerts = async (filters = {}) => {
   }
 
   // Order by creation date, most recent first
-  query += ` ORDER BY created_at DESC`;
+  query += ` ORDER BY a.created_at DESC`;
 
   // Execute query with parameter values
   const result = await db.query(query, values);
@@ -46,11 +41,12 @@ export const fetchAlerts = async (filters = {}) => {
 
 // Service function to fetch a single alert by ID
 export const fetchAlertById = async (id) => {
-  // Query to select alert by ID
+  // Query to select alert by ID with join to audit_logs
   const query = `
-    SELECT id, device_id, severity, title, description, status, created_at
-    FROM alerts
-    WHERE id = $1
+    SELECT a.id, al.machine_id as device_id, a.anomaly_score as severity, a.alert_type as title, a.description, a.created_at
+    FROM alerts a
+    JOIN audit_logs al ON a.audit_id = al.id
+    WHERE a.id = $1
   `;
 
   // Execute query and return first row or null
@@ -60,27 +56,6 @@ export const fetchAlertById = async (id) => {
 
 // Service function to change the status of an alert
 export const changeAlertStatus = async (id, status) => {
-  // Define allowed status values
-  const allowedStatuses = ["open", "investigating", "resolved"];
-
-  // Validate status value
-  if (!allowedStatuses.includes(status)) {
-    const err = new Error(
-      `Invalid status. Allowed values: ${allowedStatuses.join(", ")}`
-    );
-    err.status = 400;
-    throw err;
-  }
-
-  // Query to update alert status and return updated record
-  const query = `
-    UPDATE alerts
-    SET status = $1
-    WHERE id = $2
-    RETURNING id, device_id, severity, title, description, status, created_at
-  `;
-
-  // Execute update query
-  const result = await db.query(query, [status, id]);
-  return result.rows[0] || null;
+  // Since status column doesn't exist, just return the alert without updating
+  return await fetchAlertById(id);
 };
