@@ -1,25 +1,31 @@
-// Import database connection pool
 import db from "../db/db.js";
 
-// Service function to fetch all devices
+// Service function to fetch all devices.
+// This SQL query retrieves a list of devices by grouping audit logs based on machine_id and operating system type, 
+// while also selecting the earliest event time for each device to determine when it was first seen in the logs. 
+// The query uses COALESCE to handle cases where the OS type might be missing, defaulting to 'unknown'.
 export const fetchDevices = async () => {
-  // Query to select distinct devices from audit_logs
   const query = `
-    SELECT DISTINCT machine_id as device_name, user_id, 'unknown' as os_type, MIN(event_time) as created_at
+    SELECT
+      machine_id AS device_name,
+      MIN(user_id) AS user_id,
+      COALESCE(
+        event_message::json->'details'->>'os_type',
+        'unknown'
+      ) AS os_type,
+      MIN(event_time) AS created_at
     FROM audit_logs
-    GROUP BY machine_id, user_id
+    GROUP BY
+      machine_id,
+      COALESCE(event_message::json->'details'->>'os_type', 'unknown')
     ORDER BY created_at DESC
-  `;
+  `; 
 
-  // Execute query and return device list
   const result = await db.query(query);
-  // Add id as index for compatibility
   return result.rows.map((row, index) => ({ id: index + 1, ...row }));
 };
 
-// Service function to fetch a single device by ID
 export const fetchDeviceById = async (id) => {
-  // Since id is not in audit_logs, fetch all and find by index
   const devices = await fetchDevices();
-  return devices.find(device => device.id == id) || null;
+  return devices.find((device) => device.id == id) || null;
 };

@@ -8,7 +8,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS audit_logs (
     id SERIAL PRIMARY KEY,
-    user_id INT,
+    user_id INT REFERENCES users(id) ON DELETE SET NULL,
     machine_id VARCHAR(50),
     event_type VARCHAR(100),
     event_message TEXT,
@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 
 CREATE TABLE IF NOT EXISTS alerts (
     id SERIAL PRIMARY KEY,
-    audit_id INT,
+    audit_id INT REFERENCES audit_logs(id) ON DELETE CASCADE,
     anomaly_score FLOAT,
     alert_type VARCHAR(50),
     description TEXT,
