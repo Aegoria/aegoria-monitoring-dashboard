@@ -6,6 +6,7 @@ import Logs from './pages/Logs';
 import Alerts from './pages/Alerts';
 import Settings from './pages/Settings';
 import Login from './pages/Login';
+import logo from "./logo.png";
 
 // 1. 创建全局上下文 (处理语言和主题)
 export const AppContext = createContext();
@@ -94,8 +95,8 @@ function Layout({ children }) {
         {/* 侧边栏 */}
         <aside className="w-64 bg-white dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col shrink-0 transition-colors duration-200 z-20">
           <div className="p-6 flex items-center gap-3">
-            <div className="size-10 bg-[#1978e5] rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
-              <span className="material-symbols-outlined text-2xl">shield_lock</span>
+            <div className="size-10 bg-[#f3f6f4] rounded-lg flex items-center justify-center text-white shadow-lg shadow-blue-500/30">
+              <img src={logo} alt="Aegoria Logo" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-lg font-bold leading-none tracking-tight font-display">Aegoria</h1>
