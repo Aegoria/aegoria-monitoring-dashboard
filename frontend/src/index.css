@@ -1,0 +1,48 @@
+/* 1. 引入 Google 字体和 Material 图标 (原生 @import 必须放在最前面) */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+@import "tailwindcss";
+
+/* 2. 引入 Tailwind CSS v4 */
+@import "tailwindcss";
+
+/* 全局字体设置 */
+body { 
+    font-family: 'Inter', sans-serif; 
+}
+
+h1, h2, h3, .font-display { 
+    font-family: 'Space Grotesk', sans-serif; 
+}
+
+
+.no-scrollbar { 
+    -ms-overflow-style: none; 
+    scrollbar-width: none; 
+}
+
+/* 页面切换的淡入动画定义 */
+@keyframes fadeIn {
+    from { 
+        opacity: 0; 
+        transform: translateY(10px); 
+    }
+    to { 
+        opacity: 1; 
+        transform: translateY(0); 
+    }
+}
+
+/* 绑定淡入动画的类 */
+.animate-fade-in { 
+    animation: fadeIn 0.3s ease-in-out; 
+}
+
+/* 隐藏滚动条但保留功能 */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+
+/* 侧边栏激活状态样式 */
+.nav-item.active { background-color: #1978e5; color: white; }
+.nav-item.active .material-symbols-outlined { color: white; }
