@@ -241,6 +241,7 @@ http://localhost:3000
 npm create vite@latest frontend -- --template react
 cd frontend
 npm install
+npm install recharts --legacy-peer-deps
 npm install -D tailwindcss postcss autoprefixer
 npm install -D @tailwindcss/vite tailwindcss
 npm install axios moment

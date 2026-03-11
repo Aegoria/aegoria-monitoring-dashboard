@@ -5,5 +5,8 @@
   "scripts": {
     "dev": "cd backend && npm run dev",
     "start": "cd backend && npm start"
+  },
+  "dependencies": {
+    "recharts": "^3.8.0"
   }
 }
