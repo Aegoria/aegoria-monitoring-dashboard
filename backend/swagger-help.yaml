@@ -4,7 +4,8 @@ info:
   version: 1.0.0
   description: >
     Backend API for the Group 3 cybersecurity monitoring platform.
-    It provides endpoints for devices, logs, alerts, and dashboard data.
+    It provides endpoints for health, scan/report operations, devices,
+    logs, alerts, and dashboard data.
 
 servers:
   - url: http://localhost:3000
@@ -12,7 +13,9 @@ servers:
 
 tags:
   - name: Health
-    description: API status endpoint
+    description: API status endpoints
+  - name: Scan
+    description: Scan and report endpoints
   - name: Devices
     description: Endpoints related to monitored devices
   - name: Logs
@@ -27,7 +30,7 @@ paths:
     get:
       tags:
         - Health
-      summary: Health check
+      summary: Root health check
       description: Returns a message confirming that the backend API is running.
       responses:
         '200':
@@ -40,6 +43,56 @@ paths:
                   message:
                     type: string
                     example: Cybersecurity dashboard backend API is running
+
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Detailed health check
+      description: Returns a simple status response for service availability.
+      responses:
+        '200':
+          description: Service health information
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+
+  /scan:
+    post:
+      tags:
+        - Scan
+      summary: Run scan
+      description: Triggers a security scan and returns scan statistics.
+      responses:
+        '200':
+          description: Scan completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanResponse'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /report:
+    get:
+      tags:
+        - Scan
+      summary: Get latest scan report
+      description: Returns the latest generated scan report and analysis summary.
+      responses:
+        '200':
+          description: Latest report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ScanReport'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
 
   /devices:
     get:
@@ -200,6 +253,13 @@ paths:
           schema:
             type: integer
             example: 1
+        - name: status
+          in: query
+          required: false
+          description: Filter alerts by status
+          schema:
+            type: string
+            example: open
       responses:
         '200':
           description: List of alerts
@@ -357,6 +417,7 @@ components:
           example: 101
         device_id:
           type: integer
+          nullable: true
           example: 1
         event_type:
           type: string
@@ -368,6 +429,9 @@ components:
           type: string
           format: date-time
           example: 2025-07-25T10:45:00Z
+        severity:
+          type: string
+          example: medium
       additionalProperties: true
 
     Alert:
@@ -379,6 +443,7 @@ components:
           example: 55
         device_id:
           type: integer
+          nullable: true
           example: 1
         severity:
           type: string
@@ -396,6 +461,12 @@ components:
           type: string
           format: date-time
           example: 2025-07-25T11:00:00Z
+        anomaly_score:
+          type: number
+          example: 0.87
+        alert_type:
+          type: string
+          example: failed_login_burst
       additionalProperties: true
 
     DashboardSummary:
@@ -448,6 +519,88 @@ components:
         status:
           type: string
           example: resolved
+
+    ScanResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: scan complete
+        events_collected:
+          type: integer
+          example: 10
+        events_parsed:
+          type: integer
+          example: 10
+        events_analyzed:
+          type: integer
+          example: 10
+        risk_score:
+          type: number
+          example: 0.72
+        risk_level:
+          type: string
+          example: medium
+        duration_ms:
+          type: integer
+          example: 154
+
+    ScanReport:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: 2026-03-11T16:17:12.881755Z
+        system_health:
+          type: string
+          example: healthy
+        events_processed:
+          type: integer
+          example: 42
+        risk_score:
+          type: number
+          example: 0.65
+        risk_level:
+          type: string
+          example: medium
+        detected_threats:
+          type: object
+          properties:
+            failed_login_bursts:
+              type: integer
+              example: 3
+            privilege_escalations:
+              type: integer
+              example: 1
+            suspicious_processes:
+              type: array
+              items:
+                type: string
+              example:
+                - nc
+                - mimikatz
+            network_anomalies:
+              type: array
+              items:
+                type: string
+              example:
+                - unusual outbound traffic
+          additionalProperties: true
+        correlation_findings:
+          type: array
+          items:
+            type: string
+          example:
+            - Failed logins followed by privilege escalation on server-01
+        recommendations:
+          type: array
+          items:
+            type: string
+          example:
+            - Review failed login sources
+            - Isolate affected endpoint if escalation is confirmed
+      additionalProperties: true
 
     ErrorResponse:
       type: object
