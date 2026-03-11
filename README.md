@@ -50,8 +50,6 @@ group3-platform/
 │
 ├── database/        # Database schema and setup scripts
 │
-├── docs/            # Additional documentation
-│
 └── README.md
 ```
 
