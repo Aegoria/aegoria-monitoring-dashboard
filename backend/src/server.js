@@ -32,7 +32,7 @@ app.get("/", (req, res) => {
   });
 });
 
-// 测试登录接口（用于测试前后端连通）
+// Temporary authentication endpoint for demonstration purposes
 app.post("/auth/login", (req, res) => {
   const { username, password } = req.body;
 
@@ -47,7 +47,7 @@ app.post("/auth/login", (req, res) => {
     });
   } else {
     res.status(401).json({
-      message: "用户名或密码错误"
+      message: "Invalid username or password"
     });
   }
 });
