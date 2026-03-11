@@ -1,5 +1,35 @@
 # Just for testing purposes, not to be used in production
-# This script generates a seed.sql file with some dummy data for the users table.
+# This script generates a seed_data.sql file with dummy data for:
+# - users
+# - devices
+# - audit_logs
+# - alerts
+# - reports
+#
+# It matches the updated database schema:
+#
+# users(
+#   id, username, email, role, created_at
+# )
+#
+# devices(
+#   id, name, ip_address, status, created_at
+# )
+#
+# audit_logs(
+#   id, user_id, device_id, machine_id, event_type,
+#   event_message, event_time, severity, created_at
+# )
+#
+# alerts(
+#   id, audit_id, device_id, anomaly_score, alert_type,
+#   severity, status, title, description, created_at
+# )
+#
+# reports(
+#   id, report_name, generated_at, status, summary,
+#   risk_score, risk_level, events_processed, system_health
+# )
 
 from pathlib import Path
 from random import choice, randint, random
@@ -10,24 +40,26 @@ import json
 BASE_DIR = Path(__file__).resolve().parent
 OUTPUT_FILE = BASE_DIR / "seed_data.sql"
 
-# Define constants for random data generation
+# ============================================================
+# Constants used to generate realistic test data
+# ============================================================
+
 ROLES = ["admin", "analyst", "operator", "viewer"]
 
-# These are used for both audit_logs and alerts to maintain consistency
 SEVERITIES = ["low", "medium", "high", "critical"]
 ALERT_LEVELS = ["info", "warning", "high", "critical"]
+ALERT_STATUSES = ["open", "open", "open", "resolved"]  # weighted toward open
 MODEL_SOURCES = ["primary", "secondary"]
 
-# For audit log generation
+DEVICE_STATUSES = ["online", "online", "online", "offline", "maintenance"]
+
 OS_TYPES = ["Windows", "Linux", "macOS"]
 WINDOWS_VERSIONS = ["10", "11", "Server 2019", "Server 2022"]
 LINUX_VERSIONS = ["Ubuntu 22.04", "Debian 12", "CentOS 9", "RHEL 9"]
 MAC_VERSIONS = ["13 Ventura", "14 Sonoma"]
 
-# Agent versions for event payloads
 AGENT_VERSIONS = ["1.0.2", "1.1.0", "1.2.4", "2.0.1"]
 
-# Event types and categories for audit logs
 EVENT_TYPES = [
     "login_success",
     "login_failed",
@@ -41,7 +73,6 @@ EVENT_TYPES = [
     "config_change",
 ]
 
-# Mapping of event types to broader categories for better organization
 EVENT_CATEGORIES = {
     "login_success": "authentication",
     "login_failed": "authentication",
@@ -55,37 +86,29 @@ EVENT_CATEGORIES = {
     "config_change": "configuration",
 }
 
-# Common process names for process creation events
 PROCESS_NAMES = [
     "chrome.exe", "powershell.exe", "cmd.exe", "explorer.exe",
     "ssh", "systemd", "nginx", "python.exe", "node.exe",
     "svchost.exe", "lsass.exe", "reg.exe", "sc.exe"
 ]
 
-# Common parent processes for process creation events to add realism
 PARENT_PROCESSES = [
     "explorer.exe", "services.exe", "systemd", "cmd.exe", "powershell.exe"
 ]
 
-# Common service names for service installation/change events
 SERVICE_NAMES = [
     "W32Time", "Spooler", "WinDefend", "sshd", "nginx", "postgresql", "docker"
 ]
 
-# Common registry keys for Windows events
 REGISTRY_KEYS = [
     r"HKEY_LOCAL_MACHINE\Software\Microsoft\Windows\CurrentVersion\Run",
     r"HKEY_LOCAL_MACHINE\System\CurrentControlSet\Services",
     r"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Run",
 ]
 
-# Common actions for events
 ACTIONS = ["allowed", "blocked", "modified", "created", "deleted", "executed"]
-
-# Privilege levels for events that involve user permissions
 PRIVILEGE_LEVELS = ["user", "power_user", "administrator", "system"]
 
-# MITRE techniques and tactics for mapping suspicious events to known attack patterns
 MITRE_PAIRS = [
     ("T1078", "Valid Accounts", "Initial Access"),
     ("T1059", "Command and Scripting Interpreter", "Execution"),
@@ -99,7 +122,6 @@ MITRE_PAIRS = [
     ("T1562", "Impair Defenses", "Defense Evasion"),
 ]
 
-# Detection rules that might trigger based on the event characteristics and anomaly scores
 DETECTION_RULES = [
     "Excessive Failed Logins",
     "Suspicious PowerShell Invocation",
@@ -112,10 +134,8 @@ DETECTION_RULES = [
     "Known Benign Activity",
 ]
 
-# Possible report statuses for generated reports
 REPORT_STATUSES = ["generated", "pending", "failed"]
 
-# Sample first and last names for user generation
 FIRST_NAMES = [
     "Alice", "Bob", "Charlie", "David", "Emma", "Farah", "George", "Hugo",
     "Ines", "Jules", "Karim", "Lina", "Maya", "Nora", "Oscar", "Paul",
@@ -128,16 +148,22 @@ LAST_NAMES = [
     "David", "Bertrand", "Roux", "Vincent", "Fournier", "Morel"
 ]
 
-# This function is used to escape single quotes in SQL string literals to prevent syntax errors when inserting data into the database.
+# ============================================================
+# Small helper functions
+# ============================================================
+
 def sql_escape(value: str) -> str:
+    """Escape single quotes for safe SQL string generation."""
     return value.replace("'", "''")
 
-# This function formats a datetime object into a string that can be used in SQL queries, following the standard 'YYYY-MM-DD HH:MM:SS' format.
+
 def ts(dt: datetime) -> str:
+    """Format datetime into SQL timestamp format."""
     return dt.strftime("%Y-%m-%d %H:%M:%S")
 
-# This function generates a random datetime object in the past, within a specified number of days.
+
 def random_past_datetime(days_back: int = 30) -> datetime:
+    """Generate a random datetime in the past."""
     now = datetime.now()
     delta = timedelta(
         days=randint(0, days_back),
@@ -147,45 +173,45 @@ def random_past_datetime(days_back: int = 30) -> datetime:
     )
     return now - delta
 
-# These functions are responsible for generating realistic values for various fields in the audit logs and alerts, 
-# such as usernames, email addresses, device IDs, hostnames, OS versions, IP addresses, file paths, and hashes. 
-# They use randomization to create diverse and plausible data points that can be used for testing and development purposes.
+
+# ============================================================
+# Data generation helpers
+# ============================================================
+
 def make_username(first_name: str, last_name: str, index: int) -> str:
+    """Create a username from first name, last name, and an index."""
     return f"{first_name.lower()}.{last_name.lower()}{index}"
 
-# This function generates an email address based on the provided username, using a fixed domain for consistency in the generated data.
+
 def make_email(username: str) -> str:
+    """Create a test email from a username."""
     return f"{username}@monitoring.local"
 
-# This function creates a device ID in the format "dev-XXX", where XXX is a random three-digit number, 
-# simulating a unique identifier for devices in the audit logs.
-def make_device_id() -> str:
-    return f"dev-{randint(1, 40):03d}"
 
-# This function generates a hostname based on the operating system type, using a prefix that corresponds 
-# to the OS and a random four-digit number to create a realistic hostname for devices in the audit logs.
 def make_hostname(os_type: str) -> str:
+    """Create a hostname based on the OS type."""
     prefix = {"Windows": "WIN", "Linux": "LNX", "macOS": "MAC"}[os_type]
     return f"{prefix}-{randint(1000, 9999)}"
 
-# This function selects a random OS version from predefined lists based on the operating system type, 
-# ensuring that the generated audit logs contain realistic OS version information for the devices involved in the events.
+
 def make_os_version(os_type: str) -> str:
+    """Pick a realistic OS version for the given OS family."""
     if os_type == "Windows":
         return choice(WINDOWS_VERSIONS)
     if os_type == "Linux":
         return choice(LINUX_VERSIONS)
     return choice(MAC_VERSIONS)
 
-# This function generates a random IP address, with the option to create either private or public IPs.
-def make_ip(private=True) -> str:
+
+def make_ip(private: bool = True) -> str:
+    """Generate either a private or public-looking IP address."""
     if private:
         return f"10.{randint(0,255)}.{randint(0,255)}.{randint(1,254)}"
     return f"{randint(11,223)}.{randint(0,255)}.{randint(0,255)}.{randint(1,254)}"
 
-# This function generates a file path based on the operating system type, 
-# providing realistic paths that might be accessed or modified in the events recorded in the audit logs.
+
 def make_file_path(os_type: str) -> str:
+    """Generate a plausible file path based on the OS type."""
     if os_type == "Windows":
         return choice([
             r"C:\Windows\System32\drivers\etc\hosts",
@@ -200,14 +226,15 @@ def make_file_path(os_type: str) -> str:
         "/tmp/script.sh",
     ])
 
-# This function generates a random hash string, simulating file hashes that might be recorded in the audit logs for file access events.
+
 def make_hash() -> str:
+    """Generate a fake SHA256-like hexadecimal hash."""
     chars = "abcdef0123456789"
     return "".join(choice(chars) for _ in range(64))
 
-# These functions are used to infer the alert level and severity of events based on their anomaly scores and types, 
-# allowing for a more nuanced and realistic generation of audit logs and alerts that reflect common patterns in cybersecurity monitoring
+
 def infer_alert_level(score: float) -> str:
+    """Convert anomaly score into a coarse alert level."""
     if score >= 0.9:
         return "critical"
     if score >= 0.75:
@@ -216,9 +243,9 @@ def infer_alert_level(score: float) -> str:
         return "warning"
     return "info"
 
-# This function determines the severity of an event based on its type and anomaly score, 
-# assigning higher severity levels to events that are more likely to indicate malicious activity or significant security incidents.
+
 def infer_severity(event_type: str, anomaly_score: float) -> str:
+    """Infer log/alert severity from event type and anomaly score."""
     if event_type in {"privilege_escalation", "service_install"} and anomaly_score > 0.7:
         return "critical"
     if event_type in {"login_failed", "config_change", "network_connection"} and anomaly_score > 0.6:
@@ -227,10 +254,29 @@ def infer_severity(event_type: str, anomaly_score: float) -> str:
         return "medium"
     return "low"
 
-# This function generates a list of user dictionaries, each containing an ID, username, email, role, and creation timestamp. 
-# The usernames and emails are generated based on random combinations of first and last names, and the roles are randomly assigned from a predefined list. 
-# This function is essential for creating realistic user data that can be associated with the audit logs and alerts in the generated seed data.
+
+def infer_risk_level(score: float) -> str:
+    """Convert numeric risk score into the risk label used by reports."""
+    if score >= 0.85:
+        return "critical"
+    if score >= 0.65:
+        return "high"
+    if score >= 0.40:
+        return "medium"
+    return "low"
+
+
+# ============================================================
+# Users generation
+# ============================================================
+
 def generate_users(count: int = 25):
+    """
+    Generate fake users.
+
+    IDs are assigned manually here so we can reference them consistently
+    when generating logs.
+    """
     users = []
     for i in range(1, count + 1):
         first = choice(FIRST_NAMES)
@@ -245,21 +291,62 @@ def generate_users(count: int = 25):
         })
     return users
 
-# This function builds a detailed event payload for a given user, 
-# simulating various types of events that might be recorded in the audit logs. 
-# It randomly determines the event type, associated attributes, 
-# and whether the event is suspicious based on the anomaly score and event characteristics.
-def build_event_payload(user):
-    # Randomly select an OS type and event type for the event payload, and determine the corresponding event category.
-    os_type = choice(OS_TYPES)
+
+# ============================================================
+# Devices generation
+# ============================================================
+
+def generate_devices(count: int = 40):
+    """
+    Generate monitored devices.
+
+    We store:
+    - database integer ID
+    - display name (used in devices.name)
+    - machine_id (used in audit_logs.machine_id for backward compatibility)
+    """
+    devices = []
+    for i in range(1, count + 1):
+        os_type = choice(OS_TYPES)
+        hostname = make_hostname(os_type)
+
+        devices.append({
+            "id": i,
+            "name": hostname,
+            "machine_id": f"dev-{i:03d}",
+            "ip_address": make_ip(private=True),
+            "status": choice(DEVICE_STATUSES),
+            "created_at": random_past_datetime(120),
+            "os_type": os_type,
+            "os_version": make_os_version(os_type),
+        })
+    return devices
+
+
+# ============================================================
+# Event building
+# ============================================================
+
+def build_event_payload(user, device):
+    """
+    Build a rich event payload that will be stored as JSON in event_message.
+
+    Even though the database only stores a few top-level columns for logs,
+    we keep detailed event data in the JSON field so your backend can still
+    expose rich information later if needed.
+    """
+    os_type = device["os_type"]
     event_type = choice(EVENT_TYPES)
     event_category = EVENT_CATEGORIES[event_type]
     anomaly_score = round(random(), 2)
+
     mitre_technique, detection_rule, mitre_tactic = None, None, None
 
-    # Determine if the event is suspicious based on the anomaly score and event type, 
-    # and assign MITRE technique and detection rule if it is.
-    suspicious = anomaly_score > 0.72 or event_type in {"login_failed", "privilege_escalation", "service_install"}
+    suspicious = (
+        anomaly_score > 0.72
+        or event_type in {"login_failed", "privilege_escalation", "service_install"}
+    )
+
     if suspicious:
         technique_id, technique_name, tactic = choice(MITRE_PAIRS)
         mitre_technique = f"{technique_id} - {technique_name}"
@@ -268,21 +355,19 @@ def build_event_payload(user):
     else:
         detection_rule = "Known Benign Activity"
 
-    # Generate source and destination IPs, with the destination IP being public if the event is suspicious, and private otherwise.
     source_ip = make_ip(private=True)
     destination_ip = make_ip(private=False if suspicious else True)
 
-    # Determine login attempt count and status based on the event type, 
-    # with failed login events having a random number of attempts and a "failed" status, while successful logins have a "success" status.
     login_attempt_count = randint(1, 8) if event_type == "login_failed" else 1
-    login_status = "failed" if event_type == "login_failed" else ("success" if event_type == "login_success" else None)
+    login_status = "failed" if event_type == "login_failed" else (
+        "success" if event_type == "login_success" else None
+    )
 
-    # Randomly select a process name, parent process, and privilege level for events that involve processes, services, or privileges,
-    # with adjustments to the privilege level and anomaly score for certain event types to reflect their potential severity and risk.
     process_name = choice(PROCESS_NAMES)
     parent_process = choice(PARENT_PROCESSES)
     privilege_level = choice(PRIVILEGE_LEVELS)
 
+    # Force some event types to be more suspicious
     if event_type == "privilege_escalation":
         privilege_level = choice(["administrator", "system"])
         anomaly_score = round(max(anomaly_score, 0.80), 2)
@@ -296,15 +381,13 @@ def build_event_payload(user):
     alert_level = infer_alert_level(anomaly_score)
     event_severity = infer_severity(event_type, anomaly_score)
 
-    # Build the event payload with all the generated and inferred attributes, 
-    # creating a comprehensive representation of the event that can be stored in the audit logs 
-    # and used for generating alerts and reports.
     payload = {
-        "device_id": make_device_id(),
+        "device_id": device["id"],            # database FK for audit_logs.device_id
+        "machine_id": device["machine_id"],   # legacy identifier kept in audit_logs.machine_id
         "user_id": user["id"],
-        "hostname": make_hostname(os_type),
+        "hostname": device["name"],
         "os_type": os_type,
-        "os_version": make_os_version(os_type),
+        "os_version": device["os_version"],
         "agent_version": choice(AGENT_VERSIONS),
         "timestamp": ts(random_past_datetime(45)),
         "event_type": event_type,
@@ -341,8 +424,9 @@ def build_event_payload(user):
 
     return payload
 
-# This function takes an event payload and generates a human-readable summary of the event based on its type and key attributes.
+
 def summarize_event(payload):
+    """Create a human-readable message for each event."""
     event_type = payload["event_type"]
     username = payload["username"]
     host = payload["hostname"]
@@ -367,17 +451,29 @@ def summarize_event(payload):
         return f"Privilege escalation suspected for {username} on {host}."
     return f"Configuration changed on {host} by {username}."
 
-# This function generates a list of audit log entries based on the provided users, 
-# creating realistic event messages that include rich JSON payloads with summaries and details of each event.
-def generate_audit_logs(users, count: int = 700):
+
+# ============================================================
+# Audit logs generation
+# ============================================================
+
+def generate_audit_logs(users, devices, count: int = 700):
+    """
+    Generate audit log rows.
+
+    Important mapping to the new schema:
+    - device_id goes into audit_logs.device_id
+    - machine_id is still kept for compatibility with older logic
+    - event_message contains rich JSON with both summary and details
+    """
     logs = []
     for i in range(1, count + 1):
         user = choice(users)
-        payload = build_event_payload(user)
+        device = choice(devices)
+
+        payload = build_event_payload(user, device)
         event_time = datetime.strptime(payload["timestamp"], "%Y-%m-%d %H:%M:%S")
         summary = summarize_event(payload)
 
-        # Store rich JSON inside event_message
         event_message = json.dumps({
             "summary": summary,
             "details": payload
@@ -386,7 +482,8 @@ def generate_audit_logs(users, count: int = 700):
         logs.append({
             "id": i,
             "user_id": user["id"],
-            "machine_id": payload["device_id"],
+            "device_id": device["id"],
+            "machine_id": device["machine_id"],
             "event_type": payload["event_type"],
             "event_message": event_message,
             "event_time": event_time,
@@ -395,10 +492,38 @@ def generate_audit_logs(users, count: int = 700):
         })
     return logs
 
-# This function generates a list of alert entries based on the provided audit logs, 
-# selecting suspicious logs and creating alert descriptions that summarize the key attributes of the events that triggered the alerts, 
-# such as the alert level, event type, hostname, username, anomaly score, model source, and detection rule.
+
+# ============================================================
+# Alerts generation
+# ============================================================
+
+def make_alert_title(payload):
+    """Create a short title for the alert row."""
+    mapping = {
+        "login_failed": "Suspicious login activity",
+        "privilege_escalation": "Privilege escalation detected",
+        "service_install": "Unauthorized service installation",
+        "network_connection": "Suspicious network connection",
+        "config_change": "Configuration drift detected",
+        "file_access": "Sensitive file access pattern",
+        "process_creation": "Suspicious process creation",
+        "process_termination": "Unusual process termination",
+        "service_change": "Unexpected service change",
+        "login_success": "Authentication anomaly detected",
+    }
+    return mapping.get(payload["event_type"], "Security alert detected")
+
+
 def generate_alerts(audit_logs, count: int = 140):
+    """
+    Generate alerts from suspicious audit logs.
+
+    New schema fields included:
+    - device_id
+    - severity
+    - status
+    - title
+    """
     suspicious_logs = [
         log for log in audit_logs
         if log["payload"]["anomaly_score"] >= 0.60
@@ -420,17 +545,32 @@ def generate_alerts(audit_logs, count: int = 140):
         alerts.append({
             "id": i,
             "audit_id": log["id"],
+            "device_id": log["device_id"],
             "anomaly_score": p["anomaly_score"],
             "alert_type": p["alert_level"],
+            "severity": p["event_severity"],
+            "status": choice(ALERT_STATUSES),
+            "title": make_alert_title(p),
             "description": description,
             "created_at": created_at,
         })
     return alerts
 
-# This function generates a list of report entries with predefined names and random statuses, 
-# simulating the generation of various types of reports that might be used for dashboard validation and backend stress testing, 
-# with summaries that reflect the status of each report.
-def generate_reports(count: int = 20):
+
+# ============================================================
+# Reports generation
+# ============================================================
+
+def generate_reports(audit_logs, alerts, count: int = 20):
+    """
+    Generate reports using information derived from logs and alerts.
+
+    New schema fields included:
+    - risk_score
+    - risk_level
+    - events_processed
+    - system_health
+    """
     names = [
         "Daily Security Activity",
         "Authentication Events Review",
@@ -455,90 +595,175 @@ def generate_reports(count: int = 20):
     ]
 
     reports = []
+
+    high_or_critical_alerts = sum(
+        1 for a in alerts if a["severity"] in {"high", "critical"}
+    )
+
+    avg_anomaly = (
+        sum(log["payload"]["anomaly_score"] for log in audit_logs) / len(audit_logs)
+        if audit_logs else 0.0
+    )
+
+    # Slightly boost risk score if there are many serious alerts
+    risk_score_base = min(1.0, round(avg_anomaly + (high_or_critical_alerts / max(len(alerts), 1)) * 0.35, 2))
+    risk_level = infer_risk_level(risk_score_base)
+
     for i in range(1, count + 1):
         name = names[i - 1]
         status = choice(REPORT_STATUSES)
+        events_processed = randint(max(10, len(audit_logs) // 4), len(audit_logs))
+        system_health = "healthy" if status != "failed" else "degraded"
+
+        if status == "generated":
+            summary = (
+                f"{name} generated successfully. "
+                f"{high_or_critical_alerts} high-priority alert(s) observed across {events_processed} processed event(s)."
+            )
+        elif status == "pending":
+            summary = f"{name} is still pending and may contain partial results."
+        else:
+            summary = f"{name} failed to generate completely. Review pipeline or ingestion services."
+
         reports.append({
             "id": i,
             "report_name": name,
             "generated_at": random_past_datetime(20),
             "status": status,
-            "summary": (
-                f"{name} generated for dashboard validation and backend stress testing."
-                if status == "generated"
-                else f"{name} is {status} and may contain partial results."
-            ),
+            "summary": summary,
+            "risk_score": risk_score_base,
+            "risk_level": risk_level,
+            "events_processed": events_processed,
+            "system_health": system_health,
         })
+
     return reports
 
-# This function builds the SQL content for inserting the generated users, audit logs, alerts, and reports into the database,
-# including the necessary SQL statements to truncate existing data and insert new rows with properly escaped values and formatted timestamps.
-def build_sql(users, audit_logs, alerts, reports):
+
+# ============================================================
+# SQL builder
+# ============================================================
+
+def build_sql(users, devices, audit_logs, alerts, reports):
+    """
+    Build the final SQL seed script.
+
+    Order matters because of foreign keys:
+    1. users
+    2. devices
+    3. audit_logs
+    4. alerts
+    5. reports
+    """
     lines = []
     lines.append("-- Auto-generated by generate_seed.py")
-    lines.append("-- Rich cyber-security seed data stored in current schema")
-    lines.append("")
-    lines.append("TRUNCATE TABLE alerts, audit_logs, reports, users RESTART IDENTITY;")
+    lines.append("-- Seed data for the updated cybersecurity monitoring schema")
     lines.append("")
 
+    # TRUNCATE order is important because of FK relationships
+    lines.append("TRUNCATE TABLE alerts, audit_logs, reports, devices, users RESTART IDENTITY CASCADE;")
+    lines.append("")
+
+    # ------------------------------------------------------------
+    # Users
+    # ------------------------------------------------------------
     lines.append("INSERT INTO users (username, email, role, created_at) VALUES")
     user_rows = []
     for u in users:
         user_rows.append(
-            f"('{sql_escape(u['username'])}', '{sql_escape(u['email'])}', '{sql_escape(u['role'])}', '{ts(u['created_at'])}')"
+            f"('{sql_escape(u['username'])}', '{sql_escape(u['email'])}', "
+            f"'{sql_escape(u['role'])}', '{ts(u['created_at'])}')"
         )
     lines.append(",\n".join(user_rows) + ";")
     lines.append("")
 
-    lines.append("INSERT INTO audit_logs (user_id, machine_id, event_type, event_message, event_time, severity) VALUES")
+    # ------------------------------------------------------------
+    # Devices
+    # ------------------------------------------------------------
+    lines.append("INSERT INTO devices (name, ip_address, status, created_at) VALUES")
+    device_rows = []
+    for d in devices:
+        device_rows.append(
+            f"('{sql_escape(d['name'])}', '{sql_escape(d['ip_address'])}', "
+            f"'{sql_escape(d['status'])}', '{ts(d['created_at'])}')"
+        )
+    lines.append(",\n".join(device_rows) + ";")
+    lines.append("")
+
+    # ------------------------------------------------------------
+    # Audit logs
+    # ------------------------------------------------------------
+    lines.append("INSERT INTO audit_logs (user_id, device_id, machine_id, event_type, event_message, event_time, severity, created_at) VALUES")
     audit_rows = []
     for a in audit_logs:
         audit_rows.append(
-            f"({a['user_id']}, '{sql_escape(a['machine_id'])}', '{sql_escape(a['event_type'])}', "
-            f"'{sql_escape(a['event_message'])}', '{ts(a['event_time'])}', '{sql_escape(a['severity'])}')"
+            f"({a['user_id']}, {a['device_id']}, '{sql_escape(a['machine_id'])}', "
+            f"'{sql_escape(a['event_type'])}', '{sql_escape(a['event_message'])}', "
+            f"'{ts(a['event_time'])}', '{sql_escape(a['severity'])}', '{ts(a['event_time'])}')"
         )
     lines.append(",\n".join(audit_rows) + ";")
     lines.append("")
 
-    lines.append("INSERT INTO alerts (audit_id, anomaly_score, alert_type, description, created_at) VALUES")
+    # ------------------------------------------------------------
+    # Alerts
+    # ------------------------------------------------------------
+    lines.append("INSERT INTO alerts (audit_id, device_id, anomaly_score, alert_type, severity, status, title, description, created_at) VALUES")
     alert_rows = []
     for a in alerts:
         alert_rows.append(
-            f"({a['audit_id']}, {a['anomaly_score']}, '{sql_escape(a['alert_type'])}', "
+            f"({a['audit_id']}, {a['device_id']}, {a['anomaly_score']}, "
+            f"'{sql_escape(a['alert_type'])}', '{sql_escape(a['severity'])}', "
+            f"'{sql_escape(a['status'])}', '{sql_escape(a['title'])}', "
             f"'{sql_escape(a['description'])}', '{ts(a['created_at'])}')"
         )
     lines.append(",\n".join(alert_rows) + ";")
     lines.append("")
 
-    lines.append("INSERT INTO reports (report_name, generated_at, status, summary) VALUES")
+    # ------------------------------------------------------------
+    # Reports
+    # ------------------------------------------------------------
+    lines.append("INSERT INTO reports (report_name, generated_at, status, summary, risk_score, risk_level, events_processed, system_health) VALUES")
     report_rows = []
     for r in reports:
         report_rows.append(
             f"('{sql_escape(r['report_name'])}', '{ts(r['generated_at'])}', "
-            f"'{sql_escape(r['status'])}', '{sql_escape(r['summary'])}')"
+            f"'{sql_escape(r['status'])}', '{sql_escape(r['summary'])}', "
+            f"{r['risk_score']}, '{sql_escape(r['risk_level'])}', "
+            f"{r['events_processed']}, '{sql_escape(r['system_health'])}')"
         )
     lines.append(",\n".join(report_rows) + ";")
     lines.append("")
 
     return "\n".join(lines)
 
-# The main function orchestrates the generation of users, audit logs, alerts, and reports, and then builds the SQL content to be written to the output file. 
-# It also prints a summary of the generated data, including the number of users, audit logs, alerts, and reports, to provide feedback on the seeding process.
-def main():
-    # Generate users, audit logs, alerts, and reports with realistic and rich data for testing and development purposes.
-    users = generate_users(25) # Default is 25, but can be adjusted to generate more or fewer users as needed for testing.
-    audit_logs = generate_audit_logs(users, 700) # Default is 700, but can be adjusted to generate more or fewer audit logs to simulate different volumes of data for testing.
-    alerts = generate_alerts(audit_logs, 140) # Default is 140, but can be adjusted to generate more or fewer alerts as needed for testing.
-    reports = generate_reports(20) # Default is 20, but can be adjusted to generate more or fewer reports as needed for testing.
 
-    sql_content = build_sql(users, audit_logs, alerts, reports)
+# ============================================================
+# Main entry point
+# ============================================================
+
+def main():
+    """
+    Main function:
+    - generates fake data
+    - converts it into SQL INSERT statements
+    - writes everything into seed_data.sql
+    """
+    users = generate_users(25)
+    devices = generate_devices(40)
+    audit_logs = generate_audit_logs(users, devices, 700)
+    alerts = generate_alerts(audit_logs, 140)
+    reports = generate_reports(audit_logs, alerts, 20)
+
+    sql_content = build_sql(users, devices, audit_logs, alerts, reports)
     OUTPUT_FILE.write_text(sql_content, encoding="utf-8")
 
     print(f"Generated: {OUTPUT_FILE}")
     print(f"Users: {len(users)}")
+    print(f"Devices: {len(devices)}")
     print(f"Audit logs: {len(audit_logs)}")
     print(f"Alerts: {len(alerts)}")
     print(f"Reports: {len(reports)}")
+
 
 if __name__ == "__main__":
     main()
