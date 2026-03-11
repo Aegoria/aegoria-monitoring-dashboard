@@ -1,0 +1,467 @@
+openapi: 3.0.3
+info:
+  title: Cybersecurity Monitoring Platform API
+  version: 1.0.0
+  description: >
+    Backend API for the Group 3 cybersecurity monitoring platform.
+    It provides endpoints for devices, logs, alerts, and dashboard data.
+
+servers:
+  - url: http://localhost:3000
+    description: Local development server
+
+tags:
+  - name: Health
+    description: API status endpoint
+  - name: Devices
+    description: Endpoints related to monitored devices
+  - name: Logs
+    description: Endpoints related to system logs
+  - name: Alerts
+    description: Endpoints related to security alerts
+  - name: Dashboard
+    description: Endpoints related to summary and activity views
+
+paths:
+  /:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns a message confirming that the backend API is running.
+      responses:
+        '200':
+          description: API is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: Cybersecurity dashboard backend API is running
+
+  /devices:
+    get:
+      tags:
+        - Devices
+      summary: Get all devices
+      description: Returns the list of monitored devices.
+      responses:
+        '200':
+          description: List of devices
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Device'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /devices/{id}:
+    get:
+      tags:
+        - Devices
+      summary: Get device by ID
+      description: Returns a single device by its ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Device ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: Device found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Device'
+        '404':
+          description: Device not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Device not found
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /logs:
+    get:
+      tags:
+        - Logs
+      summary: Get logs
+      description: Returns logs with optional filters.
+      parameters:
+        - name: device_id
+          in: query
+          required: false
+          description: Filter logs by device ID
+          schema:
+            type: integer
+            example: 1
+        - name: event_type
+          in: query
+          required: false
+          description: Filter logs by event type
+          schema:
+            type: string
+            example: login_failure
+        - name: start
+          in: query
+          required: false
+          description: Start date/time for log filtering
+          schema:
+            type: string
+            format: date-time
+            example: 2025-07-25T00:00:00Z
+        - name: end
+          in: query
+          required: false
+          description: End date/time for log filtering
+          schema:
+            type: string
+            format: date-time
+            example: 2025-07-25T23:59:59Z
+        - name: limit
+          in: query
+          required: false
+          description: Maximum number of log entries to return
+          schema:
+            type: integer
+            example: 100
+      responses:
+        '200':
+          description: List of logs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Log'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /logs/{id}:
+    get:
+      tags:
+        - Logs
+      summary: Get log by ID
+      description: Returns a single log entry by its ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Log ID
+          schema:
+            type: integer
+            example: 101
+      responses:
+        '200':
+          description: Log found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Log'
+        '404':
+          description: Log not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Log not found
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /alerts:
+    get:
+      tags:
+        - Alerts
+      summary: Get alerts
+      description: Returns alerts with optional filters.
+      parameters:
+        - name: severity
+          in: query
+          required: false
+          description: Filter alerts by severity
+          schema:
+            type: string
+            example: high
+        - name: device_id
+          in: query
+          required: false
+          description: Filter alerts by device ID
+          schema:
+            type: integer
+            example: 1
+      responses:
+        '200':
+          description: List of alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Alert'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /alerts/{id}:
+    get:
+      tags:
+        - Alerts
+      summary: Get alert by ID
+      description: Returns a single alert by its ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Alert ID
+          schema:
+            type: integer
+            example: 55
+      responses:
+        '200':
+          description: Alert found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '404':
+          description: Alert not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Alert not found
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /alerts/{id}/status:
+    patch:
+      tags:
+        - Alerts
+      summary: Update alert status
+      description: Updates the status of a specific alert.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Alert ID
+          schema:
+            type: integer
+            example: 55
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateAlertStatusRequest'
+            example:
+              status: resolved
+      responses:
+        '200':
+          description: Alert updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Alert'
+        '400':
+          description: Missing or invalid status field
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Status is required
+        '404':
+          description: Alert not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              example:
+                error: Alert not found
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /dashboard/summary:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard summary
+      description: Returns dashboard summary statistics.
+      responses:
+        '200':
+          description: Dashboard summary data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardSummary'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /dashboard/activity:
+    get:
+      tags:
+        - Dashboard
+      summary: Get dashboard activity
+      description: Returns dashboard activity data.
+      responses:
+        '200':
+          description: Dashboard activity data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardActivity'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  schemas:
+    Device:
+      type: object
+      description: A monitored device
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: workstation-01
+        ip_address:
+          type: string
+          example: 192.168.1.15
+        status:
+          type: string
+          example: online
+        created_at:
+          type: string
+          format: date-time
+          example: 2025-07-25T10:30:00Z
+      additionalProperties: true
+
+    Log:
+      type: object
+      description: A system log entry
+      properties:
+        id:
+          type: integer
+          example: 101
+        device_id:
+          type: integer
+          example: 1
+        event_type:
+          type: string
+          example: login_failure
+        message:
+          type: string
+          example: Failed login attempt detected
+        timestamp:
+          type: string
+          format: date-time
+          example: 2025-07-25T10:45:00Z
+      additionalProperties: true
+
+    Alert:
+      type: object
+      description: A security alert
+      properties:
+        id:
+          type: integer
+          example: 55
+        device_id:
+          type: integer
+          example: 1
+        severity:
+          type: string
+          example: high
+        status:
+          type: string
+          example: open
+        title:
+          type: string
+          example: Suspicious login activity
+        description:
+          type: string
+          example: Multiple failed login attempts detected
+        created_at:
+          type: string
+          format: date-time
+          example: 2025-07-25T11:00:00Z
+      additionalProperties: true
+
+    DashboardSummary:
+      type: object
+      description: Summary data shown on the dashboard
+      properties:
+        total_devices:
+          type: integer
+          example: 12
+        total_logs:
+          type: integer
+          example: 1540
+        total_alerts:
+          type: integer
+          example: 27
+
+    DashboardActivity:
+      type: object
+      description: Activity data used for dashboard charts or recent activity views
+      properties:
+        activity:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActivityItem'
+      additionalProperties: true
+
+    ActivityItem:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+          example: 2025-07-25T11:00:00Z
+        type:
+          type: string
+          example: alert
+        label:
+          type: string
+          example: High severity alert detected
+        value:
+          type: integer
+          example: 1
+      additionalProperties: true
+
+    UpdateAlertStatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: resolved
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Resource not found
+
+  responses:
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          example:
+            error: Internal server error

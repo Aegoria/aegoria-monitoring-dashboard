@@ -1,10 +1,15 @@
+<<<<<<< HEAD
 import React, { useEffect, useState, useMemo } from 'react';
+=======
+import React, { useEffect, useState } from 'react';
+>>>>>>> 5b6b791892b026b2a68def9504f7c550f38f23c9
 import api from '../api';
 
 export default function Logs() {
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
+<<<<<<< HEAD
   // --- 筛选与分页状态 ---
   const [deviceFilter, setDeviceFilter] = useState('All');
   const [eventTypeFilter, setEventTypeFilter] = useState('All');
@@ -12,6 +17,8 @@ export default function Logs() {
   const itemsPerPage = 20; // 默认每页20条日志
 
   // --- 获取数据 ---
+=======
+>>>>>>> 5b6b791892b026b2a68def9504f7c550f38f23c9
   useEffect(() => {
     api.get('/logs')
       .then(res => setLogs(res.data || []))
@@ -19,6 +26,7 @@ export default function Logs() {
       .finally(() => setLoading(false));
   }, []);
 
+<<<<<<< HEAD
   // --- 动态提取下拉菜单的选项 ---
   const uniqueDevices = useMemo(() => {
     // 兼容 machine_id 或 machineId
@@ -78,12 +86,24 @@ export default function Logs() {
       return {
         date: dt.toLocaleDateString('en-US', { month: 'short', day: '2-digit', year: 'numeric' }),
         time: dt.toLocaleTimeString('en-US', { hour12: false })
+=======
+  // 更健壮的时间格式化
+  const formatDate = (dateValue) => {
+    if(!dateValue) return { date: '-', time: '-' };
+    try {
+      const dt = new Date(dateValue);
+      if (isNaN(dt.getTime())) return { date: '-', time: '-' };
+      return {
+        date: dt.toLocaleDateString(),
+        time: dt.toLocaleTimeString()
+>>>>>>> 5b6b791892b026b2a68def9504f7c550f38f23c9
       };
     } catch (e) {
       return { date: '-', time: '-' };
     }
   };
 
+<<<<<<< HEAD
   // 安全解析 event_message JSON
   const parseAuditMessage = (message) => {
     if (!message) return { summary: 'No details available', user: 'Unknown', source_ip: 'N/A' };
@@ -274,18 +294,100 @@ export default function Logs() {
                         severity === 'high' ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-900/20 dark:text-orange-400 dark:border-orange-800/50' :
                         severity === 'medium' ? 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/20 dark:text-amber-400 dark:border-amber-800/50' :
                         'bg-slate-100 text-slate-600 border-slate-200 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700'
+=======
+  // 安全解析 event_message
+  const parseDescription = (message) => {
+    if (!message) return 'No description available';
+    try {
+      const parsed = typeof message === 'string' ? JSON.parse(message) : message;
+      return parsed.summary || parsed.details?.event_type || JSON.stringify(parsed);
+    } catch (e) {
+      // 如果不是 JSON，直接返回原始字符串
+      return typeof message === 'string' ? message : 'Invalid message format';
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div>
+        <h2 className="text-2xl font-bold text-slate-900 dark:text-white font-display">System Activity Logs</h2>
+        <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Audit trail of automated security responses and system events.</p>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4 flex flex-wrap items-center gap-6 shadow-sm">
+        <div className="flex items-center gap-3">
+          <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Time Range:</label>
+          <button className="flex items-center gap-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-600 text-slate-700 dark:text-slate-300 text-sm rounded-lg py-2 px-3 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors">
+            <span className="material-symbols-outlined text-sm">calendar_today</span>
+            <span>Last 24 Hours</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm whitespace-nowrap">
+            <thead className="bg-slate-50 dark:bg-slate-700/50 border-b border-slate-200 dark:border-slate-700">
+              <tr>
+                <th className="px-6 py-4 font-bold text-slate-500 text-xs uppercase tracking-wider">Timestamp</th>
+                <th className="px-6 py-4 font-bold text-slate-500 text-xs uppercase tracking-wider">Event Type</th>
+                <th className="px-6 py-4 font-bold text-slate-500 text-xs uppercase tracking-wider">Source Device</th>
+                <th className="px-6 py-4 font-bold text-slate-500 text-xs uppercase tracking-wider">Severity</th>
+                <th className="px-6 py-4 font-bold text-slate-500 text-xs uppercase tracking-wider">Description</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
+              {loading ? (
+                 <tr><td colSpan="5" className="px-6 py-8 text-center text-slate-500">Loading logs...</td></tr>
+              ) : logs.length > 0 ? logs.map((log) => {
+                // 兼容后端的各种命名可能
+                const timestamp = log.event_time || log.eventTime || log.created_at;
+                const { date, time } = formatDate(timestamp);
+                const machineId = log.machine_id || log.machineId || 'Unknown Source';
+                const severity = (log.severity || 'INFO').toLowerCase();
+                const description = parseDescription(log.event_message || log.eventMessage);
+
+                return (
+                  <tr key={log.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/30 group">
+                    <td className="px-6 py-4 font-medium text-slate-600 dark:text-slate-400">
+                      {date}<br/><span className="text-slate-400 text-xs">{time}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2 font-bold text-slate-800 dark:text-white">
+                        <span className="material-symbols-outlined text-slate-500 text-sm">history_edu</span>
+                        {log.event_type || 'Unknown Event'}
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-slate-600 dark:text-slate-300">{machineId}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded text-[10px] font-bold uppercase ${
+                        severity === 'critical' || severity === 'high' 
+                          ? 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400' 
+                          : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400'
+>>>>>>> 5b6b791892b026b2a68def9504f7c550f38f23c9
                       }`}>
                         {severity}
                       </span>
                     </td>
+<<<<<<< HEAD
                   </tr>
                 );
               }) : (
                 <tr><td colSpan="5" className="px-6 py-12 text-center text-slate-500">No logs found matching the current filters.</td></tr>
+=======
+                    <td className="px-6 py-4 text-slate-500 dark:text-slate-400 max-w-xs truncate">
+                      {description}
+                    </td>
+                  </tr>
+                );
+              }) : (
+                <tr><td colSpan="5" className="px-6 py-8 text-center text-slate-500">No logs found.</td></tr>
+>>>>>>> 5b6b791892b026b2a68def9504f7c550f38f23c9
               )}
             </tbody>
           </table>
         </div>
+<<<<<<< HEAD
 
         {/* 翻页组件 */}
         {!loading && totalLogs > 0 && (
@@ -314,6 +416,8 @@ export default function Logs() {
             </div>
           </div>
         )}
+=======
+>>>>>>> 5b6b791892b026b2a68def9504f7c550f38f23c9
       </div>
     </div>
   );
