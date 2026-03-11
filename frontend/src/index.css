@@ -3,8 +3,14 @@
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
 @import "tailwindcss";
 
-/* 2. 引入 Tailwind CSS v4 */
-@import "tailwindcss";
+/* 强制 Tailwind v4 使用 class 触发暗黑模式 */
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  body {
+    font-family: 'Inter', sans-serif;
+  }
+}
 
 /* 全局字体设置 */
 body { 
