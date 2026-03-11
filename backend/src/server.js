@@ -32,6 +32,26 @@ app.get("/", (req, res) => {
   });
 });
 
+// 测试登录接口（用于测试前后端连通）
+app.post("/auth/login", (req, res) => {
+  const { username, password } = req.body;
+
+  if (username === "admin" && password === "admin") {
+    res.json({
+      token: "fake-jwt-token-123",
+      user: {
+        username: "admin",
+        name: "Admin User",
+        role: "Security Lead"
+      }
+    });
+  } else {
+    res.status(401).json({
+      message: "用户名或密码错误"
+    });
+  }
+});
+
 // Mount route handlers
 app.use("/devices", devicesRoutes);
 app.use("/logs", logsRoutes);

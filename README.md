@@ -251,8 +251,13 @@ http://localhost:3000
 ## 4. Frontend Setup
 
 ```
+npm create vite@latest frontend -- --template react
 cd frontend
 npm install
+npm install -D tailwindcss postcss autoprefixer
+npm install -D @tailwindcss/vite tailwindcss
+npm install axios moment
+npm install react-router-dom
 npm run dev
 ```
 
