@@ -8,6 +8,7 @@ import devicesRoutes from "./routes/devices.js";
 import logsRoutes from "./routes/logs.js";
 import alertsRoutes from "./routes/alerts.js";
 import dashboardRoutes from "./routes/dashboard.js";
+import scanRoutes from "./routes/scan.js";
 
 // Import error handling middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -30,6 +31,11 @@ app.get("/", (req, res) => {
   res.json({
     message: "Cybersecurity dashboard backend API is running"
   });
+});
+
+// Dedicated health endpoint required by the OpenAPI contract.
+app.get("/health", (req, res) => {
+  res.json({ status: "ok" });
 });
 
 // Temporary authentication endpoint for demonstration purposes
@@ -57,6 +63,7 @@ app.use("/devices", devicesRoutes);
 app.use("/logs", logsRoutes);
 app.use("/alerts", alertsRoutes);
 app.use("/dashboard", dashboardRoutes);
+app.use("/", scanRoutes);
 
 // Error handling middleware
 app.use(notFoundHandler);

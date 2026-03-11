@@ -1,70 +1,93 @@
 // Import database connection pool
 import db from "../db/db.js";
 
-// Service function to fetch logs with optional filters
+// The log endpoints expose audit log data using the field names documented in
+// Swagger. Compatibility aliases are also returned so the current UI does not
+// need to change.
 export const fetchLogs = async (filters = {}) => {
-  // Arrays to build dynamic WHERE conditions and parameter values
   const conditions = [];
   const values = [];
 
-  // Add device_id filter if provided (mapped to machine_id)
   if (filters.device_id) {
     values.push(filters.device_id);
-    conditions.push(`machine_id = $${values.length}`);
+    conditions.push(`al.device_id = $${values.length}`);
   }
 
-  // Add event_type filter if provided
   if (filters.event_type) {
     values.push(filters.event_type);
-    conditions.push(`event_type = $${values.length}`);
+    conditions.push(`al.event_type = $${values.length}`);
   }
 
-  // Add start timestamp filter if provided (mapped to event_time)
   if (filters.start) {
     values.push(filters.start);
-    conditions.push(`event_time >= $${values.length}`);
+    conditions.push(`al.event_time >= $${values.length}`);
   }
 
-  // Add end timestamp filter if provided (mapped to event_time)
   if (filters.end) {
     values.push(filters.end);
-    conditions.push(`event_time <= $${values.length}`);
+    conditions.push(`al.event_time <= $${values.length}`);
   }
 
-  // Base query to select log fields from audit_logs
   let query = `
-    SELECT id, machine_id as device_id, event_time as timestamp, event_type, user_id as user_account, event_message as raw_data, event_time as created_at
-    FROM audit_logs
+    SELECT
+      al.id,
+      al.device_id,
+      d.name AS device_name,
+      d.name AS machine_id,
+      al.machine_id,
+      al.event_type,
+      al.event_message AS message,
+      al.event_message,
+      al.event_time AS timestamp,
+      al.event_time,
+      al.severity,
+      al.user_id,
+      u.username,
+      al.created_at
+    FROM audit_logs al
+    LEFT JOIN devices d ON d.id = al.device_id
+    LEFT JOIN users u ON u.id = al.user_id
   `;
 
-  // Add WHERE clause if any conditions exist
   if (conditions.length > 0) {
     query += ` WHERE ${conditions.join(" AND ")}`;
   }
 
-  // Order by event_time, most recent first
-  query += ` ORDER BY event_time DESC`;
+  query += ` ORDER BY al.event_time DESC NULLS LAST, al.created_at DESC`;
 
-  // Apply limit (default 100 if not specified)
   const limit = Number(filters.limit) || 100;
   values.push(limit);
   query += ` LIMIT $${values.length}`;
 
-  // Execute query and return log entries
   const result = await db.query(query, values);
   return result.rows;
 };
 
-// Service function to fetch a single log entry by ID
+// A single log lookup uses the exact same projection as the list endpoint so
+// both routes stay consistent for the client.
 export const fetchLogById = async (id) => {
-  // Query to select log by ID from audit_logs
   const query = `
-    SELECT id, machine_id as device_id, event_time as timestamp, event_type, user_id as user_account, event_message as raw_data, event_time as created_at
-    FROM audit_logs
-    WHERE id = $1
+    SELECT
+      al.id,
+      al.device_id,
+      d.name AS device_name,
+      d.name AS machine_id,
+      al.machine_id,
+      al.event_type,
+      al.event_message AS message,
+      al.event_message,
+      al.event_time AS timestamp,
+      al.event_time,
+      al.severity,
+      al.user_id,
+      u.username,
+      al.created_at
+    FROM audit_logs al
+    LEFT JOIN devices d ON d.id = al.device_id
+    LEFT JOIN users u ON u.id = al.user_id
+    WHERE al.id = $1
   `;
 
-  // Execute query and return log entry or null
   const result = await db.query(query, [id]);
   return result.rows[0] || null;
 };

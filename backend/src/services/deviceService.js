@@ -1,31 +1,51 @@
 import db from "../db/db.js";
 
-// Service function to fetch all devices.
-// This SQL query retrieves a list of devices by grouping audit logs based on machine_id and operating system type, 
-// while also selecting the earliest event time for each device to determine when it was first seen in the logs. 
-// The query uses COALESCE to handle cases where the OS type might be missing, defaulting to 'unknown'.
+// Devices now live in their own table, so the service reads directly from
+// `devices` and only uses audit logs to enrich each row with a recent activity
+// timestamp. A few compatibility aliases are returned because the current UI
+// still looks for older field names such as `hostname` and `ip`.
 export const fetchDevices = async () => {
   const query = `
     SELECT
-      machine_id AS device_name,
-      MIN(user_id) AS user_id,
-      COALESCE(
-        event_message::json->'details'->>'os_type',
-        'unknown'
-      ) AS os_type,
-      MIN(event_time) AS created_at
-    FROM audit_logs
-    GROUP BY
-      machine_id,
-      COALESCE(event_message::json->'details'->>'os_type', 'unknown')
-    ORDER BY created_at DESC
-  `; 
+      d.id,
+      d.name,
+      d.name AS hostname,
+      d.ip_address,
+      d.ip_address AS ip,
+      d.status,
+      d.created_at,
+      COALESCE(MAX(al.event_time), d.created_at) AS last_active,
+      'Unknown OS' AS os_type
+    FROM devices d
+    LEFT JOIN audit_logs al ON al.device_id = d.id
+    GROUP BY d.id, d.name, d.ip_address, d.status, d.created_at
+    ORDER BY d.created_at DESC
+  `;
 
   const result = await db.query(query);
-  return result.rows.map((row, index) => ({ id: index + 1, ...row }));
+  return result.rows;
 };
 
+// Fetch a single device directly from the devices table so the route remains
+// consistent with the OpenAPI contract and database primary key.
 export const fetchDeviceById = async (id) => {
-  const devices = await fetchDevices();
-  return devices.find((device) => device.id == id) || null;
+  const query = `
+    SELECT
+      d.id,
+      d.name,
+      d.name AS hostname,
+      d.ip_address,
+      d.ip_address AS ip,
+      d.status,
+      d.created_at,
+      COALESCE(MAX(al.event_time), d.created_at) AS last_active,
+      'Unknown OS' AS os_type
+    FROM devices d
+    LEFT JOIN audit_logs al ON al.device_id = d.id
+    WHERE d.id = $1
+    GROUP BY d.id, d.name, d.ip_address, d.status, d.created_at
+  `;
+
+  const result = await db.query(query, [id]);
+  return result.rows[0] || null;
 };

@@ -1,61 +1,101 @@
 // Import database connection pool
 import db from "../db/db.js";
 
-// Service function to fetch alerts with optional filters
+// Alerts now map directly to the columns defined in the new schema. The query
+// also keeps a few descriptive fields from the linked audit log so the current
+// UI can still display useful context without extra requests.
 export const fetchAlerts = async (filters = {}) => {
-  // Arrays to build dynamic WHERE conditions and parameter values
   const conditions = [];
   const values = [];
 
-  // Add severity filter if provided (mapped to anomaly_score)
   if (filters.severity) {
     values.push(filters.severity);
-    conditions.push(`a.anomaly_score = $${values.length}`);
+    conditions.push(`a.severity = $${values.length}`);
   }
 
-  // Add device_id filter if provided (mapped to audit_logs.machine_id)
   if (filters.device_id) {
     values.push(filters.device_id);
-    conditions.push(`al.machine_id = $${values.length}`);
+    conditions.push(`a.device_id = $${values.length}`);
   }
 
-  // Base query to select alert fields with join to audit_logs
+  if (filters.status) {
+    values.push(filters.status);
+    conditions.push(`a.status = $${values.length}`);
+  }
+
   let query = `
-    SELECT a.id, al.machine_id as device_id, a.anomaly_score as severity, a.alert_type as title, a.description, a.created_at
+    SELECT
+      a.id,
+      a.audit_id,
+      a.device_id,
+      d.name AS device_name,
+      d.name AS machine_id,
+      a.anomaly_score,
+      a.alert_type,
+      a.severity,
+      a.status,
+      a.title,
+      a.description,
+      a.created_at,
+      al.event_type,
+      al.event_message
     FROM alerts a
-    JOIN audit_logs al ON a.audit_id = al.id
+    LEFT JOIN audit_logs al ON a.audit_id = al.id
+    LEFT JOIN devices d ON d.id = a.device_id
   `;
 
-  // Add WHERE clause if any conditions exist
   if (conditions.length > 0) {
     query += ` WHERE ${conditions.join(" AND ")}`;
   }
 
-  // Order by creation date, most recent first
   query += ` ORDER BY a.created_at DESC`;
 
-  // Execute query with parameter values
   const result = await db.query(query, values);
   return result.rows;
 };
 
-// Service function to fetch a single alert by ID
 export const fetchAlertById = async (id) => {
-  // Query to select alert by ID with join to audit_logs
   const query = `
-    SELECT a.id, al.machine_id as device_id, a.anomaly_score as severity, a.alert_type as title, a.description, a.created_at
+    SELECT
+      a.id,
+      a.audit_id,
+      a.device_id,
+      d.name AS device_name,
+      d.name AS machine_id,
+      a.anomaly_score,
+      a.alert_type,
+      a.severity,
+      a.status,
+      a.title,
+      a.description,
+      a.created_at,
+      al.event_type,
+      al.event_message
     FROM alerts a
-    JOIN audit_logs al ON a.audit_id = al.id
+    LEFT JOIN audit_logs al ON a.audit_id = al.id
+    LEFT JOIN devices d ON d.id = a.device_id
     WHERE a.id = $1
   `;
 
-  // Execute query and return first row or null
   const result = await db.query(query, [id]);
   return result.rows[0] || null;
 };
 
-// Service function to change the status of an alert
+// The new schema includes a real `status` column, so PATCH /alerts/:id/status
+// performs an actual update and returns the fresh record.
 export const changeAlertStatus = async (id, status) => {
-  // Since status column doesn't exist, just return the alert without updating
-  return await fetchAlertById(id);
+  const query = `
+    UPDATE alerts
+    SET status = $2
+    WHERE id = $1
+    RETURNING id
+  `;
+
+  const result = await db.query(query, [id, status]);
+
+  if (result.rowCount === 0) {
+    return null;
+  }
+
+  return fetchAlertById(id);
 };
