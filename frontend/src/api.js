@@ -3,7 +3,7 @@ import axios from 'axios';
 // 配置后端的 Axios 实例
 const api = axios.create({
   // 请替换为你的实际后端地址和端口
-  baseURL: 'http://localhost:3000', 
+  baseURL: 'http://localhost:3001', 
   headers: {
     'Content-Type': 'application/json',
   },

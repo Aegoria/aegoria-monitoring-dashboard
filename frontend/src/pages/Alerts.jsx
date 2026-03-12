@@ -121,18 +121,20 @@ export default function Alerts() {
               <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Severity</th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Alert Type</th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Target</th>
-              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Timestamp</th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">AI Score</th>
+              <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">MITRE</th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider">Status</th>
               <th className="px-6 py-4 text-xs font-bold text-slate-500 uppercase tracking-wider text-right">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {loading ? (
-              <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500">Loading alerts...</td></tr>
+              <tr><td colSpan="7" className="px-6 py-8 text-center text-slate-500">Loading alerts...</td></tr>
             ) : alerts.length > 0 ? alerts.map((alert) => {
               const info = getAlertInfo(alert);
-              const timestamp = new Date(alert.created_at);
-              const formattedDate = `${timestamp.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}, ${timestamp.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}`;
+              const aiScore = alert.ai_threat_score != null ? (alert.ai_threat_score * 100).toFixed(0) + '%' : info.score !== 'N/A' ? info.score : '-';
+              const mitre = alert.mitre_technique || '-';
+              const status = alert.status || (info.severityConfig.label === 'CRITICAL' || info.severityConfig.label === 'HIGH' ? 'open' : 'resolved');
 
               return (
                 <tr key={alert.id} onClick={() => openModal(alert)} className={`hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer group bg-slate-50 dark:bg-slate-800/10 ${info.severityConfig.border}`}>
@@ -143,11 +145,12 @@ export default function Alerts() {
                   </td>
                   <td className="px-6 py-4 text-sm font-semibold text-slate-900 dark:text-slate-100">{info.title}</td>
                   <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400 font-mono">{info.host}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600 dark:text-slate-400">{formattedDate}</td>
+                  <td className="px-6 py-4 text-sm font-mono font-bold text-[#1978e5]">{aiScore}</td>
+                  <td className="px-6 py-4 text-xs font-mono text-slate-500">{mitre}</td>
                   <td className="px-6 py-4">
-                    <span className={`flex items-center gap-1.5 text-xs font-bold ${info.severityConfig.label === 'CRITICAL' || info.severityConfig.label === 'HIGH' ? 'text-red-600' : 'text-slate-400'}`}>
-                      <span className={`size-1.5 rounded-full ${info.severityConfig.dot}`}></span>
-                      {info.severityConfig.label === 'CRITICAL' || info.severityConfig.label === 'HIGH' ? 'Active' : 'Resolved'}
+                    <span className={`flex items-center gap-1.5 text-xs font-bold ${status === 'open' ? 'text-red-600' : 'text-emerald-500'}`}>
+                      <span className={`size-1.5 rounded-full ${status === 'open' ? 'bg-red-600' : 'bg-emerald-500'}`}></span>
+                      {status === 'open' ? 'Active' : 'Resolved'}
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
@@ -156,7 +159,7 @@ export default function Alerts() {
                 </tr>
               );
             }) : (
-              <tr><td colSpan="6" className="px-6 py-8 text-center text-slate-500">No alerts found.</td></tr>
+              <tr><td colSpan="7" className="px-6 py-8 text-center text-slate-500">No alerts found.</td></tr>
             )}
           </tbody>
         </table>
@@ -222,7 +225,17 @@ export default function Alerts() {
                       <h5 className="text-sm font-bold text-[#1978e5]">AI Insights</h5>
                     </div>
                     <p className="text-sm leading-relaxed text-slate-700 dark:text-slate-300 relative z-10">
-                      Aegoria AI has assigned this event an anomaly score of <span className="font-bold text-[#1978e5]">{info.score}</span>. The pattern detected directly violates established behavioral baselines. The system matched this activity with known MITRE ATT&CK tactics.
+                      Aegoria AI has assigned this event an anomaly score of <span className="font-bold text-[#1978e5]">{info.score}</span>.
+                      {selectedAlert.ai_threat_classification && (
+                        <> Classification: <span className="font-bold text-[#1978e5] capitalize">{selectedAlert.ai_threat_classification.replace(/_/g, ' ')}</span>.</>
+                      )}
+                      {selectedAlert.confidence_score != null && (
+                        <> Confidence: <span className="font-bold text-[#1978e5]">{(selectedAlert.confidence_score * 100).toFixed(0)}%</span>.</>
+                      )}
+                      {selectedAlert.mitre_technique && (
+                        <> MITRE ATT&CK: <span className="font-bold font-mono text-[#1978e5]">{selectedAlert.mitre_technique}</span>.</>
+                      )}
+                      {' '}The pattern detected directly violates established behavioral baselines.
                     </p>
                   </div>
 

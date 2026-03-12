@@ -14,8 +14,8 @@ const { Pool, Client } = pg;
 const dbConfig = {
   host: process.env.DB_HOST || "localhost",
   port: Number(process.env.DB_PORT) || 5432,
-  user: process.env.DB_USER || "postgres",
-  password: process.env.DB_PASSWORD || "postgres",
+  user: process.env.DB_USER || process.env.USER || "postgres",
+  password: process.env.DB_PASSWORD != null ? process.env.DB_PASSWORD : "postgres",
   database: process.env.DB_NAME || "monitoring_db"
 };
 
@@ -44,10 +44,10 @@ const quoteIdentifier = (value) => `"${String(value).replace(/"/g, "\"\"")}"`;
 
 const createDatabaseIfMissing = async (dbName) => {
   const adminClient = new Client({
-    host: process.env.DB_HOST,
-    port: Number(process.env.DB_PORT),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
+    host: process.env.DB_HOST || "localhost",
+    port: Number(process.env.DB_PORT) || 5432,
+    user: process.env.DB_USER || process.env.USER || "postgres",
+    password: process.env.DB_PASSWORD != null ? process.env.DB_PASSWORD : "postgres",
     database: "postgres"
   });
 

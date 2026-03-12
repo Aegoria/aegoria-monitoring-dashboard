@@ -3,13 +3,14 @@ import express from "express";
 import {
   getAlerts,
   getAlertById,
-  updateAlertStatus
+  updateAlertStatus,
+  createAlert,
 } from "../controllers/alertsController.js";
 
-// Create Express router instance
 const router = express.Router();
 
-// Define routes for alerts
+// POST /alerts - Create a new alert (used by AI model)
+router.post("/", createAlert);
 // GET /alerts - Get all alerts with optional filters
 router.get("/", getAlerts);
 // GET /alerts/:id - Get a specific alert by ID

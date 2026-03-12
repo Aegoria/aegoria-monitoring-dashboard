@@ -2,7 +2,8 @@
 import {
   fetchAlerts,
   fetchAlertById,
-  changeAlertStatus
+  changeAlertStatus,
+  insertAlert,
 } from "../services/alertService.js";
 
 // Controller function to get all alerts with optional filters
@@ -17,6 +18,16 @@ export const getAlerts = async (req, res, next) => {
     // Fetch alerts from service layer
     const alerts = await fetchAlerts(filters);
     res.json(alerts);
+  } catch (err) {
+    next(err);
+  }
+};
+
+// Controller function to create a new alert (from AI model)
+export const createAlert = async (req, res, next) => {
+  try {
+    const alert = await insertAlert(req.body);
+    res.status(201).json(alert);
   } catch (err) {
     next(err);
   }

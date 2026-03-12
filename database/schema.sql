@@ -22,6 +22,11 @@ CREATE TABLE IF NOT EXISTS alerts (
     anomaly_score FLOAT,
     alert_type VARCHAR(50),
     description TEXT,
+    ai_threat_score FLOAT,
+    ai_threat_classification VARCHAR(100),
+    confidence_score FLOAT,
+    status VARCHAR(20) DEFAULT 'open',
+    mitre_technique VARCHAR(50),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -30,5 +35,14 @@ CREATE TABLE IF NOT EXISTS reports (
     report_name VARCHAR(100),
     generated_at TIMESTAMP,
     status VARCHAR(50),
-    summary TEXT
+    summary TEXT,
+    risk_score INT,
+    risk_level VARCHAR(20),
+    detected_threats JSONB,
+    correlation_findings JSONB,
+    attack_timeline JSONB,
+    recommendations JSONB,
+    ai_analysis JSONB,
+    event_distribution JSONB,
+    pipeline_metrics JSONB
 );

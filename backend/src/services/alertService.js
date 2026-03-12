@@ -21,9 +21,11 @@ export const fetchAlerts = async (filters = {}) => {
 
   // Base query to select alert fields with join to audit_logs
   let query = `
-    SELECT a.id, al.machine_id as device_id, a.anomaly_score as severity, a.alert_type as title, a.description, a.created_at
+    SELECT a.id, al.machine_id as device_id, a.anomaly_score as severity, a.alert_type as title,
+           a.description, a.created_at, a.ai_threat_score, a.ai_threat_classification,
+           a.confidence_score, a.status, a.mitre_technique
     FROM alerts a
-    JOIN audit_logs al ON a.audit_id = al.id
+    LEFT JOIN audit_logs al ON a.audit_id = al.id
   `;
 
   // Add WHERE clause if any conditions exist
@@ -43,9 +45,11 @@ export const fetchAlerts = async (filters = {}) => {
 export const fetchAlertById = async (id) => {
   // Query to select alert by ID with join to audit_logs
   const query = `
-    SELECT a.id, al.machine_id as device_id, a.anomaly_score as severity, a.alert_type as title, a.description, a.created_at
+    SELECT a.id, al.machine_id as device_id, a.anomaly_score as severity, a.alert_type as title,
+           a.description, a.created_at, a.ai_threat_score, a.ai_threat_classification,
+           a.confidence_score, a.status, a.mitre_technique
     FROM alerts a
-    JOIN audit_logs al ON a.audit_id = al.id
+    LEFT JOIN audit_logs al ON a.audit_id = al.id
     WHERE a.id = $1
   `;
 
@@ -56,6 +60,45 @@ export const fetchAlertById = async (id) => {
 
 // Service function to change the status of an alert
 export const changeAlertStatus = async (id, status) => {
-  // Since status column doesn't exist, just return the alert without updating
-  return await fetchAlertById(id);
+  const query = `
+    UPDATE alerts SET status = $2 WHERE id = $1
+    RETURNING a.id, a.anomaly_score as severity, a.alert_type as title,
+              a.description, a.status, a.created_at
+  `;
+  try {
+    const result = await db.query(
+      `UPDATE alerts SET status = $2 WHERE id = $1 RETURNING *`,
+      [id, status]
+    );
+    if (result.rows.length === 0) return null;
+    return result.rows[0];
+  } catch {
+    // Fallback if status column doesn't exist yet
+    return await fetchAlertById(id);
+  }
+};
+
+// Service function to insert a new alert (from AI model)
+export const insertAlert = async (data) => {
+  const query = `
+    INSERT INTO alerts (
+      audit_id, anomaly_score, alert_type, description,
+      ai_threat_score, ai_threat_classification, confidence_score,
+      status, mitre_technique
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+    RETURNING *
+  `;
+  const values = [
+    data.audit_id || null,
+    data.anomaly_score || data.final_score || 0,
+    data.alert_type || data.source || "AI_ALERT",
+    data.description || data.entity_name || "",
+    data.ai_threat_score || null,
+    data.ai_threat_classification || null,
+    data.confidence_score || null,
+    data.status || "open",
+    data.mitre_technique || (data.techniques && data.techniques[0]) || null,
+  ];
+  const result = await db.query(query, values);
+  return result.rows[0];
 };

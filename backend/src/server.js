@@ -8,6 +8,8 @@ import devicesRoutes from "./routes/devices.js";
 import logsRoutes from "./routes/logs.js";
 import alertsRoutes from "./routes/alerts.js";
 import dashboardRoutes from "./routes/dashboard.js";
+import reportsRoutes from "./routes/reports.js";
+import systemRoutes from "./routes/system.js";
 
 // Import error handling middleware
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
@@ -17,13 +19,13 @@ dotenv.config();
 
 // Create Express application instance
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 
 // Middleware setup
 // Enable CORS for cross-origin requests
 app.use(cors());
-// Parse JSON request bodies
-app.use(express.json());
+// Parse JSON request bodies (increased limit for large reports)
+app.use(express.json({ limit: "10mb" }));
 
 // Root route - health check endpoint
 app.get("/", (req, res) => {
@@ -57,6 +59,8 @@ app.use("/devices", devicesRoutes);
 app.use("/logs", logsRoutes);
 app.use("/alerts", alertsRoutes);
 app.use("/dashboard", dashboardRoutes);
+app.use("/reports", reportsRoutes);
+app.use("/system", systemRoutes);
 
 // Error handling middleware
 app.use(notFoundHandler);
